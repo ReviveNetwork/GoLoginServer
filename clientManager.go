@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -114,8 +113,13 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 		return
 	}
 
-	event.Client.State.ClientChallenge = gs.BF2RandomUnsafe(5)
-	event.Client.Write("\\lc\\1\\challenge\\" + event.Client.State.ClientChallenge + "\\id\\1\\final\\")
+	log.Noteln("Client connecting")
+
+	//event.Client.State.ServerChallenge = hex.EncodeToString([]byte(gs.BF2RandomUnsafe(5)))
+	//event.Client.Write("\\lc\\1\\challenge\\" + event.Client.State.ServerChallenge + "\\id\\1\\final\\")
+
+	event.Client.State.ServerChallenge = "2bea1a9777"
+	event.Client.Write("\\lc\\1\\challenge\\2bea1a9777\\id\\1\\final\\")
 
 	// Start Heartbeat
 	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)
@@ -148,13 +152,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		return
 	}
 
-	if challenge != event.Client.State.ClientChallenge {
-		err := event.Client.WriteError("0", "Wrong challenge.")
-		if err != nil {
-			log.Noteln("Client left during writing error")
-		}
-		return
-	}
+	event.Client.State.ClientChallenge = challenge
 	event.Client.State.ClientResponse = response
 
 	stmt, err := cM.db.Prepare("SELECT t1.web_id, t1.pid, t2.username, t2.password, t2.game_country, t2.email, t2.banned, t2.confirmed_em FROM revive_soldiers t1 LEFT JOIN web_users t2 ON t1.web_id=t2.id WHERE t1.nickname = ? AND game = ?")
@@ -178,7 +176,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	}
 	event.Client.State.PlyName = event.Client.State.Username
 
-	responseVerify := password + strings.Repeat(" ", 50) + uniqueNick + event.Client.State.ClientChallenge + password
+	responseVerify := password + strings.Repeat(" ", 48) + uniqueNick + event.Client.State.ClientChallenge + event.Client.State.ServerChallenge + password
 	responseVerify = gs.Hash(responseVerify)
 
 	if event.Client.State.ClientResponse != responseVerify {
@@ -202,19 +200,15 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		if len < 0 {
 			break
 		}
-		fmt.Println("Char: ", runeName[nameIndex])
-		fmt.Println("Index: ", ((runeName[nameIndex]^session)&0xff)%256)
-		fmt.Println("Operator: ", (session >> 8))
-		fmt.Println("Crc: ", gs.CrcLookup[((runeName[nameIndex]^session)&0xff)%256])
 		tmpSession := session >> 8
 		session = gs.CrcLookup[((runeName[nameIndex]^session)&0xff)%256] ^ (tmpSession)
-		fmt.Println("Result:", session)
-
 		nameIndex = nameIndex + 1
 	}
 
 	log.Noteln("Login Success", event.Client.IpAddr, event.Client.State.PlyName)
-	err = event.Client.Write("\\lc\\2\\sesskey\\" + string(session) + " \\proof\\" + responseVerify + "\\userid\\" + strconv.Itoa(event.Client.State.PlyPid) + "\\profileid\\" + strconv.Itoa(event.Client.State.PlyPid) + "\\uniquenick\\" + event.Client.State.PlyName + "\\lt\\" + gs.BF2RandomUnsafe(22) + "__\\id\\1\\final\\")
+	responseVerify2 := password + strings.Repeat(" ", 48) + uniqueNick + event.Client.State.ServerChallenge + event.Client.State.ClientChallenge + password
+	responseVerify2 = gs.Hash(responseVerify2)
+	err = event.Client.Write("\\lc\\2\\sesskey\\" + strconv.Itoa(int(session)) + "\\proof\\" + responseVerify2 + "\\userid\\" + strconv.Itoa(event.Client.State.PlyPid) + "\\profileid\\" + strconv.Itoa(event.Client.State.PlyPid) + "\\uniquenick\\" + event.Client.State.PlyName + "\\lt\\" + gs.BF2RandomUnsafe(22) + "__\\id\\1\\final\\")
 	if err != nil {
 		log.Noteln("Client left during writing error")
 	}
@@ -363,4 +357,8 @@ func (cM *ClientManager) close(event gs.EventClientClose) {
 		log.Noteln("Client left")
 		return
 	}
+}
+
+func (cM *ClientManager) error(event gs.EventClientError) {
+	log.Noteln("Client threw an error: ", event.Error)
 }

@@ -1,0 +1,4 @@
+mysqlserver: "localhost:3306"
+mysqluser: "root"
+mysqldb: ""
+mysqlpw: ""

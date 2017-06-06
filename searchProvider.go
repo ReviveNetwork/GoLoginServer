@@ -37,9 +37,9 @@ func (sP *SearchProvider) run() {
 		case event := <-sP.eventsChannel:
 			switch {
 			case event.Name == "client.command.nicks":
-				sP.nicks(event.Data.(gs.EventClientCommand))
+				go sP.nicks(event.Data.(gs.EventClientCommand))
 			case event.Name == "client.command.check":
-				sP.check(event.Data.(gs.EventClientCommand))
+				go sP.check(event.Data.(gs.EventClientCommand))
 			default:
 				log.Debugln(event)
 			}
@@ -69,7 +69,7 @@ func (sP *SearchProvider) check(event gs.EventClientCommand) {
 
 	var pid int
 
-	err = stmt.QueryRow(nick, "battlefield2").Scan(pid)
+	err = stmt.QueryRow(nick, "battlefield2").Scan(&pid)
 	if err != nil {
 		event.Client.WriteError("256", "Invalid username. Account does not exist!")
 		return

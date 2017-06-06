@@ -3,9 +3,11 @@ package main
 import (
 	"database/sql"
 	"strconv"
+	"time"
 
 	gs "github.com/ReviveNetwork/GoRevive/GameSpy"
 	log "github.com/ReviveNetwork/GoRevive/Log"
+	"github.com/ReviveNetwork/GoRevive/core"
 )
 
 type SearchProvider struct {
@@ -13,22 +15,43 @@ type SearchProvider struct {
 	socket        *gs.Socket
 	eventsChannel chan gs.SocketEvent
 	db            *sql.DB
+	iDB           *core.InfluxDB
+	batchTicker   *time.Ticker
 }
 
 // New creates and starts a new SearchProvider
-func (sP *SearchProvider) New(name string, db *sql.DB) {
+func (sP *SearchProvider) New(name string, db *sql.DB, iDB *core.InfluxDB) {
 	var err error
 
 	sP.socket = new(gs.Socket)
 	sP.name = name
 	sP.db = db
+	sP.iDB = iDB
 	sP.eventsChannel, err = sP.socket.New(sP.name, "29901")
 
 	if err != nil {
 		log.Errorln(err)
 	}
 
+	// Collect metrics every 10 seconds
+	sP.batchTicker = time.NewTicker(time.Second * 1)
+	go func() {
+		for range sP.batchTicker.C {
+			sP.collectMetrics()
+		}
+	}()
+
 	go sP.run()
+}
+
+func (sP *SearchProvider) collectMetrics() {
+	// Create a point and add to batch
+	tags := map[string]string{"clients": "clients-total", "server": "SearchProvider"}
+	fields := map[string]interface{}{
+		"clients": len(sP.socket.Clients),
+	}
+
+	sP.iDB.AddMetric("clients_total", tags, fields)
 }
 
 func (sP *SearchProvider) run() {

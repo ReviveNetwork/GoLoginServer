@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/signal"
 
-	core "github.com/ReviveNetwork/GoRevive/Core"
 	log "github.com/ReviveNetwork/GoRevive/Log"
+	"github.com/ReviveNetwork/GoRevive/core"
 )
 
 var (
@@ -47,6 +47,12 @@ func main() {
 	MyConfig.Load(*configPath)
 	// Startup done
 
+	metricConnection := new(core.InfluxDB)
+	err := metricConnection.New(MyConfig.InfluxDBHost, MyConfig.InfluxDBDatabase, MyConfig.InfluxDBUser, MyConfig.InfluxDBPassword)
+	if err != nil {
+		log.Fatalln("Error connecting to MetricsDB:", err)
+	}
+
 	dbConnection := new(core.DB)
 	dbSQL, err := dbConnection.New(MyConfig.MysqlServer, MyConfig.MysqlDb, MyConfig.MysqlUser, MyConfig.MysqlPw)
 	if err != nil {
@@ -60,10 +66,10 @@ func main() {
 	}
 
 	searchProvider := new(SearchProvider)
-	searchProvider.New("SP", dbSQL)
+	searchProvider.New("SP", dbSQL, metricConnection)
 
 	clientManager := new(ClientManager)
-	clientManager.New("CN", dbSQL, loggingDBSQL)
+	clientManager.New("CN", dbSQL, loggingDBSQL, metricConnection)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -12,6 +12,7 @@ import (
 
 	gs "github.com/ReviveNetwork/GoRevive/GameSpy"
 	log "github.com/ReviveNetwork/GoRevive/Log"
+	"github.com/ReviveNetwork/GoRevive/core"
 )
 
 type LogEnum string
@@ -50,23 +51,44 @@ type ClientManager struct {
 	eventsChannel chan gs.SocketEvent
 	db            *sql.DB
 	loggingDB     *sql.DB
+	iDB           *core.InfluxDB
+	batchTicker   *time.Ticker
 }
 
 // New creates and starts a new ClientManager
-func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB) {
+func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB, iDB *core.InfluxDB) {
 	var err error
 
 	cM.socket = new(gs.Socket)
 	cM.name = name
 	cM.db = db
 	cM.loggingDB = loggingDB
+	cM.iDB = iDB
 	cM.eventsChannel, err = cM.socket.New(cM.name, "29900")
 
 	if err != nil {
 		log.Errorln(err)
 	}
 
+	// Collect metrics every 10 seconds
+	cM.batchTicker = time.NewTicker(time.Second * 1)
+	go func() {
+		for range cM.batchTicker.C {
+			cM.collectMetrics()
+		}
+	}()
+
 	go cM.run()
+}
+
+func (cM *ClientManager) collectMetrics() {
+	// Create a point and add to batch
+	tags := map[string]string{"clients": "clients-total", "server": "ClientManager"}
+	fields := map[string]interface{}{
+		"clients": len(cM.socket.Clients),
+	}
+
+	cM.iDB.AddMetric("clients_total", tags, fields)
 }
 
 func (cM *ClientManager) run() {

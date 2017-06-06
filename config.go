@@ -16,6 +16,10 @@ type Config struct {
 	MysqlLoggingUser   string
 	MysqlLoggingDb     string
 	MysqlLoggingPw     string
+	InfluxDBHost       string
+	InfluxDBDatabase   string
+	InfluxDBUser       string
+	InfluxDBPassword   string
 }
 
 func (config *Config) Parse(data []byte) error {

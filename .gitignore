@@ -1,5 +1,5 @@
 *.exe
-GoLoginServer
+GoLoginServer*
 test*
 .vscode*
 debug*

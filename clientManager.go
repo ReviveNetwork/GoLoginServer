@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"errors"
 	"net"
 	"strconv"
@@ -115,11 +116,8 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 
 	log.Noteln("Client connecting")
 
-	//event.Client.State.ServerChallenge = hex.EncodeToString([]byte(gs.BF2RandomUnsafe(5)))
-	//event.Client.Write("\\lc\\1\\challenge\\" + event.Client.State.ServerChallenge + "\\id\\1\\final\\")
-
-	event.Client.State.ServerChallenge = "2bea1a9777"
-	event.Client.Write("\\lc\\1\\challenge\\2bea1a9777\\id\\1\\final\\")
+	event.Client.State.ServerChallenge = hex.EncodeToString([]byte(gs.BF2RandomUnsafe(5)))
+	event.Client.Write("\\lc\\1\\challenge\\" + event.Client.State.ServerChallenge + "\\id\\1\\final\\")
 
 	// Start Heartbeat
 	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)

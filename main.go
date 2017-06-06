@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"os"
+	"os/signal"
 
 	core "github.com/ReviveNetwork/GoRevive/Core"
 	log "github.com/ReviveNetwork/GoRevive/Log"
@@ -48,9 +50,16 @@ func main() {
 	dbConnection := new(core.DB)
 	dbSQL, err := dbConnection.New(MyConfig.MysqlServer, MyConfig.MysqlDb, MyConfig.MysqlUser, MyConfig.MysqlPw)
 	if err != nil {
-		log.Fatalln("Error connecting to DB", err)
+		log.Fatalln("Error connecting to DB:", err)
 	}
 
 	searchProvider := new(SearchProvider)
 	searchProvider.New("SP", dbSQL)
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	for sig := range c {
+		log.Noteln("Captured" + sig.String() + ". Shutting down.")
+		os.Exit(0)
+	}
 }

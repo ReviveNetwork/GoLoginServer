@@ -23,7 +23,7 @@ const (
 	LOG_LOGIN_FAILED      LogEnum = "login_failed"
 	LOG_LOGOUT            LogEnum = "logout"
 	LOG_CLOSE             LogEnum = "close"
-	LOG_CLOSE_ERRPR       LogEnum = "close_error"
+	LOG_CLOSE_ERROR       LogEnum = "close_error"
 )
 
 func (s *LogEnum) Scan(src interface{}) error {
@@ -116,6 +116,18 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 
 	event.Client.State.ClientChallenge = gs.BF2RandomUnsafe(5)
 	event.Client.Write("\\lc\\1\\challenge\\" + event.Client.State.ClientChallenge + "\\id\\1\\final\\")
+
+	// Start Heartbeat
+	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)
+	go func() {
+		for range event.Client.State.HeartTicker.C {
+			if event.Client.IsActive {
+				event.Client.Write("revive")
+			} else {
+				event.Client.State.HeartTicker.Stop()
+			}
+		}
+	}()
 }
 
 func (cM *ClientManager) login(event gs.EventClientCommand) {
@@ -254,6 +266,8 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		}
 		return
 	}
+
+	event.Client.State.HasLogin = true
 }
 
 func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
@@ -262,11 +276,47 @@ func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 		return
 	}
 
+	pID := 2
+	if event.Client.State.ProfileSent {
+		pID = 5
+	}
+
+	log.Noteln("GetProfile", event.Client.IpAddr, event.Client.State.PlyName)
+	event.Client.Write("\\pi\\\\profileid\\" + strconv.Itoa(event.Client.State.PlyPid) +
+		"\\nick\\" + event.Client.State.PlyName +
+		"\\userid\\" + strconv.Itoa(event.Client.State.PlyPid) +
+		"\\email\\" + event.Client.State.PlyEmail +
+		"\\sig\\" + gs.BF2RandomUnsafe(32) +
+		"\\uniquenick\\" + event.Client.State.PlyName +
+		"\\pid\\0\\firstname\\\\lastname\\" +
+		"\\countrycode\\" + event.Client.State.PlyCountry +
+		"\\birthday\\16844722\\lon\\0.000000\\lat\\0.000000\\loc\\" +
+		"\\id\\" + strconv.Itoa(pID) +
+		"\\\\final\\")
 }
 
 func (cM *ClientManager) updatePro(event gs.EventClientCommand) {
 	if !event.Client.IsActive {
 		log.Noteln("Client left")
+		return
+	}
+
+	countryCode, okCountryCode := event.Command.Message["countrycode"]
+
+	if !okCountryCode {
+		event.Client.WriteError("0", "Invalid query! No country code specified.")
+		return
+	}
+
+	log.Noteln("UpdateProfile", event.Client.IpAddr, event.Client.State.PlyName)
+	stmt, err := cM.db.Prepare("UPDATE web_users SET game_country=? WHERE id=?")
+	if err != nil {
+		log.Errorln("Error with DB: ", err)
+		return
+	}
+	_, err = stmt.Exec(countryCode, event.Client.State.BattlelogID)
+	if err != nil {
+		log.Errorln("Error with DB: ", err)
 		return
 	}
 }
@@ -276,6 +326,10 @@ func (cM *ClientManager) logout(event gs.EventClientCommand) {
 		log.Noteln("Client left")
 		return
 	}
+
+	event.Client.State.LoggedOut = true
+	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGOUT)
+	event.Client.Close()
 }
 
 func (cM *ClientManager) newUser(event gs.EventClientCommand) {
@@ -283,9 +337,28 @@ func (cM *ClientManager) newUser(event gs.EventClientCommand) {
 		log.Noteln("Client left")
 		return
 	}
+
+	event.Client.WriteError("516", "In-game registration is not available. Please visit battlelog.co to register.")
 }
 
 func (cM *ClientManager) close(event gs.EventClientClose) {
+	if !event.Client.State.HasLogin {
+		return
+	}
+
+	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_CLOSE)
+
+	stmt, err := cM.db.Prepare("UPDATE revive_soldiers SET online = 0 WHERE pid=? AND game=?")
+	if err != nil {
+		log.Errorln("Error with DB: ", err)
+		return
+	}
+	_, err = stmt.Exec(event.Client.State.PlyPid, "battlefield2")
+	if err != nil {
+		log.Errorln("Error with DB: ", err)
+		return
+	}
+
 	if !event.Client.IsActive {
 		log.Noteln("Client left")
 		return

@@ -8,10 +8,14 @@ import (
 )
 
 type Config struct {
-	MysqlServer string
-	MysqlUser   string
-	MysqlDb     string
-	MysqlPw     string
+	MysqlServer        string
+	MysqlUser          string
+	MysqlDb            string
+	MysqlPw            string
+	MysqlLoggingServer string
+	MysqlLoggingUser   string
+	MysqlLoggingDb     string
+	MysqlLoggingPw     string
 }
 
 func (config *Config) Parse(data []byte) error {

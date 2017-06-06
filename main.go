@@ -53,8 +53,17 @@ func main() {
 		log.Fatalln("Error connecting to DB:", err)
 	}
 
+	loggingDBConnection := new(core.DB)
+	loggingDBSQL, err := loggingDBConnection.New(MyConfig.MysqlLoggingServer, MyConfig.MysqlLoggingDb, MyConfig.MysqlLoggingUser, MyConfig.MysqlLoggingPw)
+	if err != nil {
+		log.Fatalln("Error connecting to logging DB:", err)
+	}
+
 	searchProvider := new(SearchProvider)
 	searchProvider.New("SP", dbSQL)
+
+	clientManager := new(ClientManager)
+	clientManager.New("CN", dbSQL, loggingDBSQL)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

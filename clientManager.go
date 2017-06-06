@@ -171,7 +171,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 
 	if event.Client.State.ClientResponse != responseVerify {
 		log.Noteln("Login Failure", event.Client.IpAddr, event.Client.State.PlyName, "Password: "+password)
-		cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP, event.Client.State.Username, LOG_LOGIN_FAILED)
+		cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN_FAILED)
 		err := event.Client.WriteError("256", "Incorrect password. Visit www.battlelog.co if you forgot your password.")
 		if err != nil {
 			log.Noteln("Client left during writing error")
@@ -211,7 +211,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		confirmedTimer := time.NewTimer(time.Second)
 		go func() {
 			<-confirmedTimer.C
-			cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP, event.Client.State.Username, LOG_LOGIN_UNCONFIRMED)
+			cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN_UNCONFIRMED)
 			err := event.Client.WriteError("256", "Sorry! You must confirm your Revive BF2 account before you can play Battlefield 2. Check your email for a confirmation link. If you did not recieve it, please login at https://battlelog.co to request a new one.")
 			if err != nil {
 				log.Noteln("Client left during writing error")
@@ -225,7 +225,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		bannedTimer := time.NewTimer(time.Second)
 		go func() {
 			<-bannedTimer.C
-			cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP, event.Client.State.Username, LOG_LOGIN_BANNED)
+			cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN_BANNED)
 			err := event.Client.WriteError("256", "Sorry! Your account has been banned from Revive BF2. Please visit battlelog.co to appeal.")
 			if err != nil {
 				log.Noteln("Client left during writing error")
@@ -236,7 +236,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	}
 
 	// Login Successful
-	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP, event.Client.State.Username, LOG_LOGIN)
+	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN)
 
 	stmt, err = cM.db.Prepare("UPDATE revive_soldiers SET online = 1, ip = INET_ATON(?) WHERE pid=? AND game=?")
 	if err != nil {
@@ -246,7 +246,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		}
 		return
 	}
-	_, err = stmt.Exec(event.Client.IpAddr.(*net.TCPAddr).IP, event.Client.State.PlyPid, "battlefield2")
+	_, err = stmt.Exec(event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.PlyPid, "battlefield2")
 	if err != nil {
 		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		if err != nil {

@@ -54,7 +54,7 @@ func (sP *SearchProvider) check(event gs.EventClientCommand) {
 		return
 	}
 
-	log.Noteln("Check\t" + nick)
+	log.Noteln("Check\t", nick, event.Client.IpAddr)
 
 	if !event.Client.IsActive {
 		log.Noteln("Client left")
@@ -100,7 +100,7 @@ func (sP *SearchProvider) nicks(event gs.EventClientCommand) {
 		passMD5 = gs.Hash(decodedPass)
 	}
 
-	log.Noteln("Nicks\t" + email)
+	log.Noteln("Nicks\t", email, event.Client.IpAddr)
 
 	if !event.Client.IsActive {
 		log.Noteln("Client left")

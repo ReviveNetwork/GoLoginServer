@@ -1,5 +1,5 @@
 *.exe
-GoRevive
+GoLoginServer
 test*
 .vscode*
 debug*

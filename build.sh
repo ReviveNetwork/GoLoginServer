@@ -9,4 +9,4 @@ git clone git@github.com:ReviveNetwork/GoRevive.git $GITHUBPATH/ReviveNetwork/Go
 go get .
 
 make
-make windows
+make win

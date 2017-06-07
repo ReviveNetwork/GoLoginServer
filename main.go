@@ -19,7 +19,7 @@ var (
 	// compileVersion we are receiving by the build command
 	CompileVersion = "0"
 	// Version of the Application
-	Version = "0.0.0"
+	Version = "0.0.1"
 
 	// MyConfig Default configuration
 	MyConfig = Config{
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	log.SetLevel(*logLevel)
-	log.Notef("Starting up v%s", Version)
+	log.Notef("Starting up v%s - %s %s %s", Version, BuildTime, GitBranch, GitHash)
 
 	MyConfig.Load(*configPath)
 	// Startup done

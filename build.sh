@@ -3,6 +3,7 @@ export GOPATH=$WORKSPACE
 export GITHUBPATH=$GOPATH/src/github.com
 
 echo "Cloning Project Dependencies"
+cd $GOATH
 git clone git@github.com:ReviveNetwork/GoRevive.git $GITHUBPATH/ReviveNetwork/GoRevive
 go get .
 

@@ -69,7 +69,7 @@ func main() {
 	searchProvider.New("SP", dbSQL, metricConnection)
 
 	clientManager := new(ClientManager)
-	clientManager.New("CN", dbSQL, loggingDBSQL, metricConnection)
+	clientManager.New("CM", dbSQL, loggingDBSQL, metricConnection)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -8,5 +8,6 @@ cd $GOPATH
 git clone git@github.com:ReviveNetwork/GoRevive.git $GITHUBPATH/ReviveNetwork/GoRevive
 go get .
 
+mkdir -p $GOPATH/dist
 make linux
 make win

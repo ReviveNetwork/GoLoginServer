@@ -1,5 +1,6 @@
 echo "Preparing Project Environment"
 export GOPATH=$WORKSPACE
+export GOBIN=$WORKSPACE/bin
 export GITHUBPATH=$GOPATH/src/github.com
 
 echo "Cloning Project Dependencies"

@@ -83,7 +83,7 @@ func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB, iDB *co
 
 func (cM *ClientManager) collectMetrics() {
 	// Create a point and add to batch
-	tags := map[string]string{"clients": "clients-total", "server": "ClientManager"}
+	tags := map[string]string{"clients": "clients-total", "server": "ClientManager", "version": Version}
 	fields := map[string]interface{}{
 		"clients": len(cM.socket.Clients),
 	}

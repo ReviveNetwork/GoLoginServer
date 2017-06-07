@@ -46,7 +46,7 @@ func (sP *SearchProvider) New(name string, db *sql.DB, iDB *core.InfluxDB) {
 
 func (sP *SearchProvider) collectMetrics() {
 	// Create a point and add to batch
-	tags := map[string]string{"clients": "clients-total", "server": "SearchProvider"}
+	tags := map[string]string{"clients": "clients-total", "server": "SearchProvider", "version": Version}
 	fields := map[string]interface{}{
 		"clients": len(sP.socket.Clients),
 	}

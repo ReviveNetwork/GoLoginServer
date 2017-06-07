@@ -119,6 +119,7 @@ func (cM *ClientManager) run() {
 
 func (cM *ClientManager) insertLog(uid int, pid int, ip string, username string, log_type LogEnum) {
 	stmt, err := cM.loggingDB.Prepare("INSERT INTO logs_gamespy_auth (uid, pid, ip, username, log_type, shard) VALUES (?, ?, INET_ATON(?), ?, ?, ?)")
+	defer stmt.Close()
 	if err != nil {
 		log.Errorln("Error with logging DB: ", err)
 		return
@@ -176,6 +177,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	event.Client.State.ClientResponse = response
 
 	stmt, err := cM.db.Prepare("SELECT t1.web_id, t1.pid, t2.username, t2.password, t2.game_country, t2.email, t2.banned, t2.confirmed_em FROM revive_soldiers t1 LEFT JOIN web_users t2 ON t1.web_id=t2.id WHERE t1.nickname = ? AND game = ?")
+	defer stmt.Close()
 	if err != nil {
 		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		if err != nil {
@@ -265,6 +267,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN)
 
 	stmt, err = cM.db.Prepare("UPDATE revive_soldiers SET online = 1, ip = INET_ATON(?) WHERE pid=? AND game=?")
+	defer stmt.Close()
 	if err != nil {
 		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		if err != nil {
@@ -324,6 +327,7 @@ func (cM *ClientManager) updatePro(event gs.EventClientCommand) {
 
 	log.Noteln("UpdateProfile", event.Client.IpAddr, event.Client.State.PlyName)
 	stmt, err := cM.db.Prepare("UPDATE web_users SET game_country=? WHERE id=?")
+	defer stmt.Close()
 	if err != nil {
 		log.Errorln("Error with DB: ", err)
 		return
@@ -363,6 +367,7 @@ func (cM *ClientManager) close(event gs.EventClientClose) {
 	cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_CLOSE)
 
 	stmt, err := cM.db.Prepare("UPDATE revive_soldiers SET online = 0 WHERE pid=? AND game=?")
+	defer stmt.Close()
 	if err != nil {
 		log.Errorln("Error with DB: ", err)
 		return

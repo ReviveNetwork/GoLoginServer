@@ -85,6 +85,7 @@ func (sP *SearchProvider) check(event gs.EventClientCommand) {
 	}
 
 	stmt, err := sP.db.Prepare("SELECT pid FROM revive_soldiers WHERE nickname=? AND game=?")
+	defer stmt.Close()
 	if err != nil {
 		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		return
@@ -131,6 +132,7 @@ func (sP *SearchProvider) nicks(event gs.EventClientCommand) {
 	}
 
 	stmt, err := sP.db.Prepare("SELECT username FROM web_users WHERE email=? AND password=?")
+	defer stmt.Close()
 	if err != nil {
 		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		return

@@ -4,23 +4,23 @@ clean:
 
 linux:
 	@echo "Building for Linux"
-	@GOOS=linux GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o bin/GoLoginServer
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o dist/GoLoginServer
 
 mac:
 	@echo "Building for MacOS X"
-	@GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o bin/GoLoginServer-osx
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o dist/GoLoginServer-osx
 
 freebsd:
 	@echo "Building for FreeBSD"
-	@GOOS=freebsd GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o bin/GoLoginServer-freebsd
+	@GOOS=freebsd GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o dist/GoLoginServer-freebsd
 
 win:
 	@echo "Building for Windows"
-	@GOOS=windows GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o bin/GoLoginServer-win.exe
+	@GOOS=windows GOARCH=amd64 go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o dist/GoLoginServer.exe
 
 pi:
 	@echo "Building for Raspberry Pi"
-	@GOOS=linux GOARCH=arm go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o bin/GoLoginServer-raspi
+	@GOOS=linux GOARCH=arm go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`" -o dist/GoLoginServer-raspi
 
 current:
 	@go build -ldflags "-X main.CompileVersion=`sh ./upCompileVersion.sh` -X main.BuildTime=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.GitBranch=`git rev-parse --abbrev-ref HEAD`"

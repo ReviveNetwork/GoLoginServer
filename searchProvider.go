@@ -27,7 +27,7 @@ func (sP *SearchProvider) New(name string, db *sql.DB, iDB *core.InfluxDB) {
 	sP.name = name
 	sP.db = db
 	sP.iDB = iDB
-	sP.eventsChannel, err = sP.socket.New(sP.name, "29901")
+	sP.eventsChannel, err = sP.socket.New(sP.name, "29901", "tcp")
 
 	if err != nil {
 		log.Errorln(err)

@@ -157,8 +157,20 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 	// Start Heartbeat
 	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)
 	go func() {
-		for range event.Client.State.HeartTicker.C {
-			cM.heartBeat(event)
+		for {
+			select {
+			case <-event.Client.State.HeartTicker.C:
+				if !event.Client.IsActive {
+					return
+				}
+				cM.heartBeat(event)
+			default:
+				if !event.Client.IsActive {
+					return
+				}
+				runtime.Gosched()
+			}
+
 		}
 	}()
 }
@@ -368,6 +380,8 @@ func (cM *ClientManager) newUser(event gs.EventClientCommand) {
 }
 
 func (cM *ClientManager) close(event gs.EventClientClose) {
+	event.Client.State.HeartTicker.Stop()
+
 	if !event.Client.State.HasLogin {
 		return
 	}

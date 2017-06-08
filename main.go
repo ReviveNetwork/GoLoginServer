@@ -4,6 +4,11 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
+	"time"
+
+	"net/http"
+	_ "net/http/pprof"
 
 	log "github.com/ReviveNetwork/GoRevive/Log"
 	"github.com/ReviveNetwork/GoRevive/core"
@@ -28,12 +33,30 @@ var (
 		MysqlDb:     "loginserver",
 		MysqlPw:     "",
 	}
+
+	mem runtime.MemStats
 )
+
+func collectGlobalMetrics(iDB *core.InfluxDB) {
+	runtime.ReadMemStats(&mem)
+	tags := map[string]string{"metric": "server_metrics", "server": "GoLoginServer", "version": Version}
+	fields := map[string]interface{}{
+		"memAlloc":      int(mem.Alloc),
+		"memTotalAlloc": int(mem.TotalAlloc),
+		"memHeapAlloc":  int(mem.HeapAlloc),
+		"memHeapSys":    int(mem.HeapSys),
+	}
+
+	err := iDB.AddMetric("server_metrics", tags, fields)
+	if err != nil {
+		log.Debugln("Error adding Metric:", err)
+	}
+}
 
 func main() {
 	var (
 		configPath = flag.String("config", "config.yml", "Path to yml configuration file")
-		logLevel   = flag.String("loglevel", "error", "LogLevel [error|warning|note|debug]")
+		logLevel   = flag.String("logLevel", "error", "LogLevel [error|warning|note|debug]")
 	)
 	flag.Parse()
 
@@ -45,6 +68,10 @@ func main() {
 	log.Notef("Starting up v%s - %s %s %s", Version, BuildTime, GitBranch, GitHash)
 
 	MyConfig.Load(*configPath)
+
+	go func() {
+		log.Noteln(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
 	// Startup done
 
 	metricConnection := new(core.InfluxDB)
@@ -64,6 +91,13 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error connecting to logging DB:", err)
 	}
+
+	globalMetrics := time.NewTicker(time.Second * 10)
+	go func() {
+		for range globalMetrics.C {
+			collectGlobalMetrics(metricConnection)
+		}
+	}()
 
 	searchProvider := new(SearchProvider)
 	searchProvider.New("SP", dbSQL, metricConnection)

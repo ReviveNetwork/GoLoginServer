@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -114,8 +113,8 @@ func (cM *ClientManager) run() {
 			default:
 				log.Debugln(event)
 			}
-		default:
-			runtime.Gosched()
+			/*default:
+			runtime.Gosched()*/
 		}
 	}
 }
@@ -164,11 +163,11 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 					return
 				}
 				cM.heartBeat(event)
-			default:
+				/*default:
 				if !event.Client.IsActive {
 					return
 				}
-				runtime.Gosched()
+				runtime.Gosched()*/
 			}
 
 		}

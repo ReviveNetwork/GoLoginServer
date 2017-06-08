@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 
 	log "github.com/ReviveNetwork/GoRevive/Log"
 	"github.com/ReviveNetwork/GoRevive/core"
@@ -24,7 +24,7 @@ var (
 	// compileVersion we are receiving by the build command
 	CompileVersion = "0"
 	// Version of the Application
-	Version = "0.0.1"
+	Version = "0.0.2"
 
 	// MyConfig Default configuration
 	MyConfig = Config{
@@ -76,8 +76,17 @@ func main() {
 
 	MyConfig.Load(*configPath)
 
+	r := http.NewServeMux()
+
+	// Register pprof handlers
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
 	go func() {
-		log.Noteln(http.ListenAndServe("0.0.0.0:6060", nil))
+		log.Noteln(http.ListenAndServe("0.0.0.0:6060", r))
 	}()
 	// Startup done
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -113,6 +114,8 @@ func (cM *ClientManager) run() {
 			default:
 				log.Debugln(event)
 			}
+		default:
+			runtime.Gosched()
 		}
 	}
 }
@@ -131,6 +134,15 @@ func (cM *ClientManager) insertLog(uid int, pid int, ip string, username string,
 	}
 }
 
+func (cM *ClientManager) heartBeat(event gs.EventNewClient) {
+	if !event.Client.IsActive {
+		event.Client.State.HeartTicker.Stop()
+		return
+	}
+
+	event.Client.Write("revive")
+}
+
 func (cM *ClientManager) newClient(event gs.EventNewClient) {
 	if !event.Client.IsActive {
 		log.Noteln("Client left")
@@ -146,11 +158,7 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)
 	go func() {
 		for range event.Client.State.HeartTicker.C {
-			if event.Client.IsActive {
-				event.Client.Write("revive")
-			} else {
-				event.Client.State.HeartTicker.Stop()
-			}
+			cM.heartBeat(event)
 		}
 	}()
 }

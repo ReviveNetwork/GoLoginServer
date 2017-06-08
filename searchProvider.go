@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -66,6 +67,8 @@ func (sP *SearchProvider) run() {
 			default:
 				log.Debugln(event)
 			}
+		default:
+			runtime.Gosched()
 		}
 	}
 }

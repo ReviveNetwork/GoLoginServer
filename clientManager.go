@@ -64,7 +64,7 @@ func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB, iDB *co
 	cM.db = db
 	cM.loggingDB = loggingDB
 	cM.iDB = iDB
-	cM.eventsChannel, err = cM.socket.New(cM.name, "29900", "tcp")
+	cM.eventsChannel, err = cM.socket.New(cM.name, "29900")
 
 	if err != nil {
 		log.Errorln(err)

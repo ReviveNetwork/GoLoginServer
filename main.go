@@ -53,6 +53,13 @@ func collectGlobalMetrics(iDB *core.InfluxDB) {
 	}
 }
 
+func reconnectInflux(iDB *core.InfluxDB) {
+	err := iDB.Reconnect()
+	if err != nil {
+		log.Debugln("Error reconnecting:", err)
+	}
+}
+
 func main() {
 	var (
 		configPath = flag.String("config", "config.yml", "Path to yml configuration file")
@@ -96,6 +103,13 @@ func main() {
 	go func() {
 		for range globalMetrics.C {
 			collectGlobalMetrics(metricConnection)
+		}
+	}()
+
+	influxReconnecter := time.NewTicker(time.Minute * 5)
+	go func() {
+		for range influxReconnecter.C {
+			reconnectInflux(metricConnection)
 		}
 	}()
 

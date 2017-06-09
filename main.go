@@ -49,14 +49,14 @@ func collectGlobalMetrics(iDB *core.InfluxDB) {
 
 	err := iDB.AddMetric("server_metrics", tags, fields)
 	if err != nil {
-		log.Debugln("Error adding Metric:", err)
+		log.Errorln("Error adding Metric:", err)
 	}
 }
 
 func reconnectInflux(iDB *core.InfluxDB) {
 	err := iDB.Reconnect()
 	if err != nil {
-		log.Debugln("Error reconnecting:", err)
+		log.Errorln("Error reconnecting:", err)
 	}
 }
 

@@ -157,6 +157,9 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 	event.Client.State.HeartTicker = time.NewTicker(time.Second * 10)
 	go func() {
 		for {
+			if !event.Client.IsActive {
+				return
+			}
 			select {
 			case <-event.Client.State.HeartTicker.C:
 				if !event.Client.IsActive {
@@ -166,8 +169,8 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 				/*default:
 				if !event.Client.IsActive {
 					return
-				}
-				runtime.Gosched()*/
+				}*/
+				//runtime.Gosched()
 			}
 
 		}

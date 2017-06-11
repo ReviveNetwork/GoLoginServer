@@ -53,6 +53,7 @@ type ClientManager struct {
 	loggingDB     *sql.DB
 	iDB           *core.InfluxDB
 	batchTicker   *time.Ticker
+	stopTicker    chan bool
 }
 
 // New creates and starts a new ClientManager
@@ -65,6 +66,7 @@ func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB, iDB *co
 	cM.loggingDB = loggingDB
 	cM.iDB = iDB
 	cM.eventsChannel, err = cM.socket.New(cM.name, "29900")
+	cM.stopTicker = make(chan bool, 1)
 
 	if err != nil {
 		log.Errorln(err)
@@ -178,6 +180,8 @@ func (cM *ClientManager) newClient(event gs.EventNewClient) {
 					return
 				}
 				cM.heartBeat(event)
+			case <-cM.stopTicker:
+				return
 				/*default:
 				if !event.Client.IsActive {
 					return
@@ -582,6 +586,9 @@ func (cM *ClientManager) newUser(event gs.EventClientCommand) {
 
 func (cM *ClientManager) close(event gs.EventClientClose) {
 	event.Client.State.HeartTicker.Stop()
+	cM.stopTicker <- true
+
+	log.Noteln("Client closed.")
 
 	if !event.Client.State.HasLogin {
 		return
@@ -601,10 +608,6 @@ func (cM *ClientManager) close(event gs.EventClientClose) {
 		return
 	}
 
-	if !event.Client.IsActive {
-		log.Noteln("Client left")
-		return
-	}
 }
 
 func (cM *ClientManager) error(event gs.EventClientError) {

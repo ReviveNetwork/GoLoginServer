@@ -108,6 +108,18 @@ func (cM *ClientManager) run() {
 				go cM.logout(event.Data.(gs.EventClientCommand))
 			case event.Name == "client.command.newuser":
 				go cM.newUser(event.Data.(gs.EventClientCommand))
+				/*
+					case event.Name == "client.command.status":
+						go cM.status(event.Data.(gs.EventClientCommand))
+					case event.Name == "client.command.bm":
+						go cM.bm(event.Data.(gs.EventClientCommand))
+					case event.Name == "client.command.addbuddy":
+						go cM.addBuddy(event.Data.(gs.EventClientCommand))
+					case event.Name == "client.command.delbuddy":
+						go cM.delBuddy(event.Data.(gs.EventClientCommand))
+					case event.Name == "client.command.authadd":
+						go cM.authAdd(event.Data.(gs.EventClientCommand))
+				*/
 			case event.Name == "client.close":
 				go cM.close(event.Data.(gs.EventClientClose))
 			default:
@@ -186,8 +198,9 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	challenge, okChallenge := event.Command.Message["challenge"]
 	response, okResponse := event.Command.Message["response"]
 	uniqueNick, okUniqueNick := event.Command.Message["uniquenick"]
+	gamename, okGamename := event.Command.Message["gamename"]
 
-	if !okChallenge || !okResponse || !okUniqueNick {
+	if !okChallenge || !okResponse || !okUniqueNick || !okGamename {
 		err := event.Client.WriteError("0", "Login query missing a variable.")
 		if err != nil {
 			log.Noteln("Client left during writing error")
@@ -195,8 +208,16 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		return
 	}
 
+	if gamename != "battlefield2" && gamename != "stella" {
+		err := event.Client.WriteError("0", "Game not supported.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+	}
+
 	event.Client.State.ClientChallenge = challenge
 	event.Client.State.ClientResponse = response
+	event.Client.State.GameName = gamename
 
 	stmt, err := cM.db.Prepare("SELECT t1.web_id, t1.pid, t2.username, t2.password, t2.game_country, t2.email, t2.banned, t2.confirmed_em FROM revive_soldiers t1 LEFT JOIN web_users t2 ON t1.web_id=t2.id WHERE t1.nickname = ? AND game = ?")
 	defer stmt.Close()
@@ -210,7 +231,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 
 	var password string
 
-	err = stmt.QueryRow(uniqueNick, "battlefield2").Scan(&event.Client.State.BattlelogID, &event.Client.State.PlyPid, &event.Client.State.Username, &password, &event.Client.State.PlyCountry, &event.Client.State.PlyEmail, &event.Client.State.Banned, &event.Client.State.Confirmed)
+	err = stmt.QueryRow(uniqueNick, gamename).Scan(&event.Client.State.BattlelogID, &event.Client.State.PlyPid, &event.Client.State.Username, &password, &event.Client.State.PlyCountry, &event.Client.State.PlyEmail, &event.Client.State.Banned, &event.Client.State.Confirmed)
 	if err != nil {
 		err := event.Client.WriteError("256", "The username provided is not registered.")
 		if err != nil {
@@ -224,7 +245,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	responseVerify = gs.Hash(responseVerify)
 
 	if event.Client.State.ClientResponse != responseVerify {
-		log.Noteln("Login Failure", event.Client.IpAddr, event.Client.State.PlyName, "Password: "+password)
+		log.Noteln("Login Failure", gamename, event.Client.IpAddr, event.Client.State.PlyName, "Password: "+password)
 		cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN_FAILED)
 		err := event.Client.WriteError("256", "Incorrect password. Visit www.battlelog.co if you forgot your password.")
 		if err != nil {
@@ -276,7 +297,7 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 		go func() {
 			<-bannedTimer.C
 			cM.insertLog(event.Client.State.BattlelogID, event.Client.State.PlyPid, event.Client.IpAddr.(*net.TCPAddr).IP.String(), event.Client.State.Username, LOG_LOGIN_BANNED)
-			err := event.Client.WriteError("256", "Sorry! Your account has been banned from Revive BF2. Please visit battlelog.co to appeal.")
+			err := event.Client.WriteError("256", "Sorry! Your account has been banned from Revive Networks. Please visit battlelog.co to appeal.")
 			if err != nil {
 				log.Noteln("Client left during writing error")
 			}
@@ -307,6 +328,160 @@ func (cM *ClientManager) login(event gs.EventClientCommand) {
 	}
 
 	event.Client.State.HasLogin = true
+
+	if gamename == "stella" {
+		cM.sendMessages(event, gamename)
+		cM.sendFriends(event, gamename)
+	}
+}
+
+func (cM *ClientManager) sendFriends(event gs.EventClientCommand, gamename string) {
+	if !event.Client.IsActive {
+		log.Noteln("Client left")
+		return
+	}
+
+	stmt, err := cM.db.Prepare("SELECT fid, confirmed FROM revive_friends WHERE uid = ?")
+	defer stmt.Close()
+	if err != nil {
+		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+		return
+	}
+
+	rows, err := stmt.Query(event.Client.State.BattlelogID)
+	if err != nil {
+		// No friends :(
+		return
+	}
+
+	var friendObj string
+	var fids []int
+
+	for rows.Next() {
+		var fid int
+		var confirmed bool
+		err := rows.Scan(&fid)
+		if err != nil {
+			event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+			return
+		}
+
+		if confirmed {
+			fids = append(fids, fid)
+		}
+	}
+
+	for _, fid := range fids {
+		stmt, err := cM.db.Prepare("SELECT pid, online, status, status_msg FROM revive_soldiers WHERE pid = ? AND game = ? LIMIT 1")
+		defer stmt.Close()
+		if err != nil {
+			err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+			if err != nil {
+				log.Noteln("Client left during writing error")
+			}
+			return
+		}
+
+		var pid int
+		var online bool
+		var status string
+		var statusMsg string
+		var onlineStr string
+		var msg string
+
+		err = stmt.QueryRow(fid, gamename).Scan(&pid, &online, &status, &statusMsg)
+		if err != nil {
+			log.Noteln("Error requesting friend with fid " + strconv.Itoa(fid) + "and game " + gamename)
+			return
+		}
+
+		if online {
+			onlineStr = "1"
+		} else {
+			onlineStr = "0"
+		}
+
+		if status == "Offline" {
+			msg = "|s|" + onlineStr + "|ss|" + status
+		} else {
+			msg = "|s|" + onlineStr + "|ss|" + status + "|ls" + statusMsg + "|ip|0|p|0"
+		}
+
+		friendObj += "\\bm\\100"
+		friendObj += "\\f\\" + strconv.Itoa(pid) + "\\msg\\" + msg
+		friendObj += "\\final\\"
+	}
+
+	if !event.Client.IsActive {
+		log.Noteln("Client left")
+		return
+	}
+	event.Client.Write(friendObj)
+}
+
+func (cM *ClientManager) sendMessages(event gs.EventClientCommand, gamename string) {
+	if !event.Client.IsActive {
+		log.Noteln("Client left")
+		return
+	}
+
+	stmt, err := cM.db.Prepare("SELECT id, msg_type, from_pid, sentDate, msg FROM revive_messages WHERE to_uid = ? AND `read` = 0")
+	defer stmt.Close()
+	if err != nil {
+		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+		return
+	}
+
+	rows, err := stmt.Query(event.Client.State.BattlelogID)
+	if err != nil {
+		// No friends :(
+		return
+	}
+
+	var msgObj string
+
+	for rows.Next() {
+		var id int
+		var msgType int
+		var fromPid int
+		var sentDate int
+		var msg string
+		err := rows.Scan(&id, &msgType, &fromPid, &sentDate, &msg)
+		if err != nil {
+			event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+			return
+		}
+
+		stmt, err = cM.db.Prepare("'UPDATE revive_messages SET `read` = 1 WHERE id=?")
+		defer stmt.Close()
+		if err != nil {
+			err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+			if err != nil {
+				log.Noteln("Client left during writing error")
+			}
+			return
+		}
+		_, err = stmt.Exec(id)
+		if err != nil {
+			err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+			if err != nil {
+				log.Noteln("Client left during writing error")
+			}
+			return
+		}
+
+		if msgType == 2 {
+			msg = msg + "|signed|" + gs.Hash(strconv.Itoa(fromPid)+strconv.Itoa(event.Client.State.PlyPid))
+		}
+
+		msgObj += "\\bm\\" + strconv.Itoa(msgType) + "\\f\\" + strconv.Itoa(fromPid) + "\\date\\" + strconv.Itoa(sentDate) + "\\msg\\" + msg + "\\final\\"
+	}
+
+	if !event.Client.IsActive {
+		log.Noteln("Client left")
+		return
+	}
+	event.Client.Write(msgObj)
 }
 
 func (cM *ClientManager) getProfile(event gs.EventClientCommand) {

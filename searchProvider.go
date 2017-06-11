@@ -110,7 +110,9 @@ func (sP *SearchProvider) nicks(event gs.EventClientCommand) {
 	email, okEmail := event.Command.Message["email"]
 	pass, okPass := event.Command.Message["pass"]
 	passenc, okPassenc := event.Command.Message["passenc"]
-	if !okEmail || (!okPass && !okPassenc) {
+	gameName, okGameName := event.Command.Message["gamename"]
+
+	if !okEmail || (!okPass && !okPassenc) || !okGameName {
 		event.Client.WriteError("0", "Invalid query!")
 		return
 	}
@@ -133,34 +135,57 @@ func (sP *SearchProvider) nicks(event gs.EventClientCommand) {
 		return
 	}
 
-	stmt, err := sP.db.Prepare("SELECT username FROM web_users WHERE email=? AND password=?")
+	stmt, err := sP.db.Prepare("SELECT id, username FROM web_users WHERE email=? AND password=?")
+	defer stmt.Close()
+	if err != nil {
+		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
+	}
+
+	var webID int
+	var username string
+
+	err = stmt.QueryRow(email, passMD5).Scan(&webID, &username)
+	if err != nil {
+		err := event.Client.WriteError("256", "The username provided is not registered.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
+	}
+	stmt.Close()
+
+	stmt, err = sP.db.Prepare("SELECT nickname FROM revive_soldiers WHERE web_id=? AND game=?")
 	defer stmt.Close()
 	if err != nil {
 		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		return
 	}
 
-	rows, err := stmt.Query(email, passMD5)
+	rows, err := stmt.Query(webID, gameName)
 	if err != nil {
 		event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 		return
 	}
 
-	var usernames []string
+	var nicknames []string
 	for rows.Next() {
-		var username string
-		err := rows.Scan(&username)
+		var nickname string
+		err := rows.Scan(&nickname)
 		if err != nil {
 			event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
 			return
 		}
-		usernames = append(usernames, username)
+		nicknames = append(nicknames, nickname)
 	}
 
-	var out = "\\nr\\" + strconv.Itoa(len(usernames))
+	var out = "\\nr\\" + strconv.Itoa(len(nicknames))
 
-	for _, user := range usernames {
-		out = out + "\\nick\\" + user + "\\uniquenick\\" + user
+	for _, user := range nicknames {
+		out = out + "\\nick\\" + user + "\\uniquenick\\" + username
 	}
 
 	out = out + "\\ndone\\final\\"

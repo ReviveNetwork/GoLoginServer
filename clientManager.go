@@ -484,6 +484,9 @@ func (cM *ClientManager) sendMessages(event gs.EventClientCommand, gamename stri
 	event.Client.Write(msgObj)
 }
 
+// TODO:
+// Needs rework to actually query database with profileid payload
+// SELECT * FROM revive_soldiers WHERE pid = ? AND game= ?
 func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 	if !event.Client.IsActive {
 		log.Noteln("Client left")

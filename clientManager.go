@@ -484,31 +484,52 @@ func (cM *ClientManager) sendMessages(event gs.EventClientCommand, gamename stri
 	event.Client.Write(msgObj)
 }
 
-// TODO:
-// Needs rework to actually query database with profileid payload
-// SELECT * FROM revive_soldiers WHERE pid = ? AND game= ?
 func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 	if !event.Client.IsActive {
 		log.Noteln("Client left")
 		return
 	}
 
-	pID := 2
-	if event.Client.State.ProfileSent {
-		pID = 5
+	profileID, okProfileID := event.Command.Message["profileid"]
+	id, okID := event.Command.Message["id"]
+
+	if !okProfileID || !okID {
+		event.Client.WriteError("256", "Missing arguments")
+	}
+
+	stmt, err := cM.db.Prepare("SELECT pid, nickname  FROM revive_soldiers WHERE pid = ? AND game= ?")
+	defer stmt.Close()
+	if err != nil {
+		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
+	}
+
+	var pid int
+	var nickname string
+
+	err = stmt.QueryRow(profileID, event.Client.State.GameName).Scan(&pid, &nickname)
+	if err != nil {
+		err := event.Client.WriteError("256", "The username provided is not registered.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
 	}
 
 	log.Noteln("GetProfile", event.Client.IpAddr, event.Client.State.PlyName)
-	event.Client.Write("\\pi\\\\profileid\\" + strconv.Itoa(event.Client.State.PlyPid) +
-		"\\nick\\" + event.Client.State.PlyName +
-		"\\userid\\" + strconv.Itoa(event.Client.State.PlyPid) +
-		"\\email\\" + event.Client.State.PlyEmail +
+	event.Client.Write("\\pi\\\\profileid\\" + strconv.Itoa(pid) +
+		"\\nick\\" + nickname +
+		"\\userid\\" + strconv.Itoa(pid) +
+		"\\email\\" + nickname + "@revive.network" +
 		"\\sig\\" + gs.BF2RandomUnsafe(32) +
-		"\\uniquenick\\" + event.Client.State.PlyName +
+		"\\uniquenick\\" + nickname +
 		"\\pid\\0\\firstname\\\\lastname\\" +
 		"\\countrycode\\" + event.Client.State.PlyCountry +
 		"\\birthday\\16844722\\lon\\0.000000\\lat\\0.000000\\loc\\" +
-		"\\id\\" + strconv.Itoa(pID) +
+		"\\id\\" + id +
 		"\\\\final\\")
 }
 

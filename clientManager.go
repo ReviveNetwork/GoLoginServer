@@ -65,7 +65,7 @@ func (cM *ClientManager) New(name string, db *sql.DB, loggingDB *sql.DB, iDB *co
 	cM.db = db
 	cM.loggingDB = loggingDB
 	cM.iDB = iDB
-	cM.eventsChannel, err = cM.socket.New(cM.name, "29900")
+	cM.eventsChannel, err = cM.socket.New(cM.name, "29900", false)
 	cM.stopTicker = make(chan bool, 1)
 
 	if err != nil {

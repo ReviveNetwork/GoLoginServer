@@ -501,7 +501,7 @@ func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 		event.Client.WriteError("256", "Missing arguments")
 	}
 
-	stmt, err := cM.db.Prepare("SELECT pid, nickname  FROM revive_soldiers WHERE pid = ? AND game= ?")
+	stmt, err := cM.db.Prepare("SELECT pid, nickname, web_id  FROM revive_soldiers WHERE pid = ? AND game= ?")
 	defer stmt.Close()
 	if err != nil {
 		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
@@ -512,9 +512,32 @@ func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 	}
 
 	var pid int
+	var webID int
 	var nickname string
 
-	err = stmt.QueryRow(profileID, event.Client.State.GameName).Scan(&pid, &nickname)
+	err = stmt.QueryRow(profileID, event.Client.State.GameName).Scan(&pid, &nickname, &webID)
+	if err != nil {
+		err := event.Client.WriteError("256", "The username provided is not registered.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
+	}
+	stmt.Close()
+
+	stmt, err = cM.db.Prepare("SELECT email  FROM web_users WHERE id = ?")
+	defer stmt.Close()
+	if err != nil {
+		err := event.Client.WriteError("0", "The login service is having an issue reaching the database. Please try again in a few minutes.")
+		if err != nil {
+			log.Noteln("Client left during writing error")
+		}
+		return
+	}
+
+	var email string
+
+	err = stmt.QueryRow(webID).Scan(&email)
 	if err != nil {
 		err := event.Client.WriteError("256", "The username provided is not registered.")
 		if err != nil {
@@ -527,7 +550,7 @@ func (cM *ClientManager) getProfile(event gs.EventClientCommand) {
 	event.Client.Write("\\pi\\\\profileid\\" + strconv.Itoa(pid) +
 		"\\nick\\" + nickname +
 		"\\userid\\" + strconv.Itoa(pid) +
-		"\\email\\" + nickname + "@revive.network" +
+		"\\email\\" + email +
 		"\\sig\\" + gs.BF2RandomUnsafe(32) +
 		"\\uniquenick\\" + nickname +
 		"\\pid\\0\\firstname\\\\lastname\\" +
